@@ -1,8 +1,8 @@
 package detector
 
 import (
-	"mvctrace/internal/httpclient"
-	"mvctrace/internal/result"
+	"github.com/ismailtsdln/mvctrace/internal/httpclient"
+	"github.com/ismailtsdln/mvctrace/internal/result"
 	"net/http"
 	"strings"
 )

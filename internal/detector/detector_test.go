@@ -1,7 +1,7 @@
 package detector
 
 import (
-	"mvctrace/internal/httpclient"
+	"github.com/ismailtsdln/mvctrace/internal/httpclient"
 	"testing"
 )
 

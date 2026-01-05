@@ -5,8 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"mvctrace/internal/detector"
-	"mvctrace/internal/httpclient"
+	"github.com/ismailtsdln/mvctrace/internal/detector"
+	"github.com/ismailtsdln/mvctrace/internal/httpclient"
 	"os"
 	"time"
 )
