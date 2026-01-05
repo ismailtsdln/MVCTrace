@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"github.com/ismailtsdln/mvctrace/internal/detector"
 	"github.com/ismailtsdln/mvctrace/internal/httpclient"
+	"log"
 	"os"
 	"time"
 )
@@ -39,7 +39,7 @@ func main() {
 	flag.Parse()
 
 	if flag.NArg() != 1 {
-		fmt.Println("Usage: mvctrace <url>")
+		fmt.Println("Usage: mvctrace [flags] <url>")
 		fmt.Println("Flags:")
 		flag.PrintDefaults()
 		os.Exit(1)
