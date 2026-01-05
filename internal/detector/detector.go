@@ -72,29 +72,50 @@ func detectHeaders(client *httpclient.Client, url string) []result.Evidence {
 	evidence := []result.Evidence{}
 
 	if ver := resp.Header.Get("X-AspNetMvc-Version"); ver != "" {
+		httpDetail := &result.HTTPDetail{
+			Method:     "GET",
+			URL:        url,
+			StatusCode: resp.StatusCode,
+			Headers:    map[string]string{"X-AspNetMvc-Version": ver},
+		}
 		evidence = append(evidence, result.Evidence{
 			Description: fmt.Sprintf("MVC Version %s detected", ver),
 			Source:      "HTTP Header: X-AspNetMvc-Version",
 			Value:       ver,
 			Confidence:  90,
+			HTTPDetails: httpDetail,
 		})
 	}
 
 	if ver := resp.Header.Get("X-AspNet-Version"); ver != "" {
+		httpDetail := &result.HTTPDetail{
+			Method:     "GET",
+			URL:        url,
+			StatusCode: resp.StatusCode,
+			Headers:    map[string]string{"X-AspNet-Version": ver},
+		}
 		evidence = append(evidence, result.Evidence{
 			Description: fmt.Sprintf(".NET Framework version detected: %s", ver),
 			Source:      "HTTP Header: X-AspNet-Version",
 			Value:       ver,
 			Confidence:  20,
+			HTTPDetails: httpDetail,
 		})
 	}
 
 	if powered := resp.Header.Get("X-Powered-By"); strings.Contains(powered, "ASP.NET") {
+		httpDetail := &result.HTTPDetail{
+			Method:     "GET",
+			URL:        url,
+			StatusCode: resp.StatusCode,
+			Headers:    map[string]string{"X-Powered-By": powered},
+		}
 		evidence = append(evidence, result.Evidence{
 			Description: "ASP.NET technology stack identified",
 			Source:      "HTTP Header: X-Powered-By",
 			Value:       powered,
 			Confidence:  10,
+			HTTPDetails: httpDetail,
 		})
 	}
 
@@ -110,12 +131,24 @@ func detectHTML(client *httpclient.Client, url string) []result.Evidence {
 
 	evidence := []result.Evidence{}
 
+	ct := resp.Header.Get("Content-Type")
+	httpDetail := &result.HTTPDetail{
+		Method:     "GET",
+		URL:        url,
+		StatusCode: resp.StatusCode,
+		Headers:    make(map[string]string),
+	}
+	if ct != "" {
+		httpDetail.Headers["Content-Type"] = ct
+	}
+
 	if strings.Contains(body, `data-val="true"`) {
 		evidence = append(evidence, result.Evidence{
 			Description: "MVC validation attributes detected",
 			Source:      "HTML Body: data-val attribute",
 			Value:       `data-val="true"`,
 			Confidence:  60,
+			HTTPDetails: httpDetail,
 		})
 	}
 
@@ -125,6 +158,7 @@ func detectHTML(client *httpclient.Client, url string) []result.Evidence {
 			Source:      "HTML Body: __MVCFormValidation script",
 			Value:       "__MVCFormValidation",
 			Confidence:  70,
+			HTTPDetails: httpDetail,
 		})
 	}
 
@@ -134,6 +168,7 @@ func detectHTML(client *httpclient.Client, url string) []result.Evidence {
 			Source:      "HTML Body: Script reference",
 			Value:       "jquery.validate.unobtrusive",
 			Confidence:  50,
+			HTTPDetails: httpDetail,
 		})
 	}
 
@@ -143,6 +178,7 @@ func detectHTML(client *httpclient.Client, url string) []result.Evidence {
 			Source:      "HTML Body: Script or attribute",
 			Value:       "System.Web.Mvc",
 			Confidence:  80,
+			HTTPDetails: httpDetail,
 		})
 	}
 
@@ -163,11 +199,22 @@ func detectRoutes(client *httpclient.Client, baseURL string) []result.Evidence {
 		resp.Body.Close()
 
 		if resp.StatusCode == http.StatusOK {
+			httpDetail := &result.HTTPDetail{
+				Method:     "GET",
+				URL:        url,
+				StatusCode: resp.StatusCode,
+				Headers:    make(map[string]string),
+			}
+			if ct := resp.Header.Get("Content-Type"); ct != "" {
+				httpDetail.Headers["Content-Type"] = ct
+			}
+
 			evidence = append(evidence, result.Evidence{
 				Description: "MVC default route is accessible",
 				Source:      fmt.Sprintf("HTTP Route: %s", route),
 				Value:       fmt.Sprintf("HTTP %d", resp.StatusCode),
 				Confidence:  40,
+				HTTPDetails: httpDetail,
 			})
 		}
 	}
@@ -184,6 +231,15 @@ func detectErrorPage(client *httpclient.Client, baseURL string) []result.Evidenc
 	}
 
 	evidence := []result.Evidence{}
+	httpDetail := &result.HTTPDetail{
+		Method:     "GET",
+		URL:        url,
+		StatusCode: resp.StatusCode,
+		Headers:    make(map[string]string),
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "" {
+		httpDetail.Headers["Content-Type"] = ct
+	}
 
 	if resp.StatusCode == http.StatusNotFound {
 		if strings.Contains(body, "The resource cannot be found") || strings.Contains(body, "Server Error in '/' Application") {
@@ -192,6 +248,7 @@ func detectErrorPage(client *httpclient.Client, baseURL string) []result.Evidenc
 				Source:      "HTTP Error Page: /nonexistent-path-12345",
 				Value:       "404 Error Message Pattern",
 				Confidence:  30,
+				HTTPDetails: httpDetail,
 			})
 		}
 	}
@@ -203,6 +260,7 @@ func detectErrorPage(client *httpclient.Client, baseURL string) []result.Evidenc
 			Source:      "HTTP Error Page: /nonexistent-path-12345",
 			Value:       "System.Web.Mvc Stack Trace",
 			Confidence:  50,
+			HTTPDetails: httpDetail,
 		})
 	}
 
@@ -223,11 +281,22 @@ func detectStaticFiles(client *httpclient.Client, baseURL string) []result.Evide
 		resp.Body.Close()
 
 		if resp.StatusCode == http.StatusOK {
+			httpDetail := &result.HTTPDetail{
+				Method:     "GET",
+				URL:        url,
+				StatusCode: resp.StatusCode,
+				Headers:    make(map[string]string),
+			}
+			if ct := resp.Header.Get("Content-Type"); ct != "" {
+				httpDetail.Headers["Content-Type"] = ct
+			}
+
 			evidence = append(evidence, result.Evidence{
 				Description: "MVC static file structure detected",
 				Source:      fmt.Sprintf("Static File: %s", file),
 				Value:       fmt.Sprintf("HTTP %d", resp.StatusCode),
 				Confidence:  20,
+				HTTPDetails: httpDetail,
 			})
 		}
 	}

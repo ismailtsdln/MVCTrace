@@ -1,11 +1,20 @@
 package result
 
+// HTTPDetail holds HTTP request/response information
+type HTTPDetail struct {
+	Method     string            `json:"method"`
+	URL        string            `json:"url"`
+	StatusCode int               `json:"status_code"`
+	Headers    map[string]string `json:"headers"`
+}
+
 // Evidence represents a piece of evidence found during detection
 type Evidence struct {
-	Description string `json:"description"`
-	Source      string `json:"source"`          // Where was it found (header, html, route, etc)
-	Value       string `json:"value,omitempty"` // The actual value found
-	Confidence  int    `json:"confidence"`      // 0-100
+	Description string      `json:"description"`
+	Source      string      `json:"source"`          // Where was it found (header, html, route, etc)
+	Value       string      `json:"value,omitempty"` // The actual value found
+	Confidence  int         `json:"confidence"`      // 0-100
+	HTTPDetails *HTTPDetail `json:"http_details,omitempty"`
 }
 
 // Result holds the detection outcome

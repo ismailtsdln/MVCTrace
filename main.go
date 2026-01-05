@@ -94,6 +94,16 @@ func main() {
 			if ev.Value != "" {
 				fmt.Printf("    %sValue:%s %s\n", yellow, reset, ev.Value)
 			}
+			if ev.HTTPDetails != nil {
+				fmt.Printf("    %sHTTP Request:%s %s %s\n", blue, reset, ev.HTTPDetails.Method, ev.HTTPDetails.URL)
+				fmt.Printf("    %sHTTP Response:%s Status %d\n", blue, reset, ev.HTTPDetails.StatusCode)
+				if len(ev.HTTPDetails.Headers) > 0 {
+					fmt.Printf("    %sHeaders:%s\n", blue, reset)
+					for k, v := range ev.HTTPDetails.Headers {
+						fmt.Printf("      %s: %s\n", k, v)
+					}
+				}
+			}
 		}
 	}
 }
