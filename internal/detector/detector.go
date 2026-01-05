@@ -1,19 +1,22 @@
 package detector
 
 import (
-	"github.com/ismailtsdln/mvctrace/internal/httpclient"
-	"github.com/ismailtsdln/mvctrace/internal/result"
+	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/ismailtsdln/mvctrace/internal/httpclient"
+	"github.com/ismailtsdln/mvctrace/internal/result"
 )
 
 // Detect performs all detection methods and aggregates results
 func Detect(client *httpclient.Client, targetURL string) *result.Result {
 	res := &result.Result{
-		Target:   targetURL,
-		IsMVC:    false,
-		Version:  "",
-		Evidence: []result.Evidence{},
+		Target:        targetURL,
+		IsMVC:         false,
+		Version:       "",
+		VersionSource: "",
+		Evidence:      []result.Evidence{},
 	}
 
 	// Perform detections
@@ -26,20 +29,13 @@ func Detect(client *httpclient.Client, targetURL string) *result.Result {
 
 	res.Evidence = evidence
 
-	// Aggregate confidence
+	// Aggregate confidence and track version source
 	totalConf := 0
-	versionCandidates := map[string]int{}
+	versionCandidates := map[string]string{} // version -> source
 	for _, ev := range evidence {
 		totalConf += ev.Confidence
-		if strings.Contains(ev.Description, "MVC Version") {
-			// Extract version from description
-			if idx := strings.Index(ev.Description, "MVC Version "); idx != -1 {
-				ver := strings.TrimSpace(ev.Description[idx+12:])
-				if dotIdx := strings.Index(ver, " "); dotIdx != -1 {
-					ver = ver[:dotIdx]
-				}
-				versionCandidates[ver]++
-			}
+		if strings.Contains(ev.Description, "MVC Version") && ev.Value != "" {
+			versionCandidates[ev.Value] = ev.Source
 		}
 	}
 
@@ -53,12 +49,12 @@ func Detect(client *httpclient.Client, targetURL string) *result.Result {
 		res.IsMVC = true
 	}
 
-	// Determine version
-	maxCount := 0
-	for ver, count := range versionCandidates {
-		if count > maxCount {
-			maxCount = count
-			res.Version = ver
+	// Determine version - prefer the first one found with highest confidence
+	for _, ev := range evidence {
+		if strings.Contains(ev.Description, "MVC Version") && ev.Value != "" {
+			res.Version = ev.Value
+			res.VersionSource = ev.Source
+			break
 		}
 	}
 
@@ -77,25 +73,27 @@ func detectHeaders(client *httpclient.Client, url string) []result.Evidence {
 
 	if ver := resp.Header.Get("X-AspNetMvc-Version"); ver != "" {
 		evidence = append(evidence, result.Evidence{
-			Description: "X-AspNetMvc-Version header detected: " + ver,
+			Description: fmt.Sprintf("MVC Version %s detected", ver),
+			Source:      "HTTP Header: X-AspNetMvc-Version",
+			Value:       ver,
 			Confidence:  90,
-		})
-		evidence = append(evidence, result.Evidence{
-			Description: "MVC Version " + ver + " inferred from header",
-			Confidence:  0, // Already counted
 		})
 	}
 
 	if ver := resp.Header.Get("X-AspNet-Version"); ver != "" {
 		evidence = append(evidence, result.Evidence{
-			Description: "X-AspNet-Version header detected: " + ver,
-			Confidence:  20, // Indicates .NET, but not specifically MVC
+			Description: fmt.Sprintf(".NET Framework version detected: %s", ver),
+			Source:      "HTTP Header: X-AspNet-Version",
+			Value:       ver,
+			Confidence:  20,
 		})
 	}
 
 	if powered := resp.Header.Get("X-Powered-By"); strings.Contains(powered, "ASP.NET") {
 		evidence = append(evidence, result.Evidence{
-			Description: "X-Powered-By indicates ASP.NET",
+			Description: "ASP.NET technology stack identified",
+			Source:      "HTTP Header: X-Powered-By",
+			Value:       powered,
 			Confidence:  10,
 		})
 	}
@@ -114,28 +112,36 @@ func detectHTML(client *httpclient.Client, url string) []result.Evidence {
 
 	if strings.Contains(body, `data-val="true"`) {
 		evidence = append(evidence, result.Evidence{
-			Description: "MVC validation attributes (data-val) found in HTML",
+			Description: "MVC validation attributes detected",
+			Source:      "HTML Body: data-val attribute",
+			Value:       `data-val="true"`,
 			Confidence:  60,
 		})
 	}
 
 	if strings.Contains(body, "__MVCFormValidation") {
 		evidence = append(evidence, result.Evidence{
-			Description: "__MVCFormValidation script reference found",
+			Description: "MVC form validation script found",
+			Source:      "HTML Body: __MVCFormValidation script",
+			Value:       "__MVCFormValidation",
 			Confidence:  70,
 		})
 	}
 
 	if strings.Contains(body, "jquery.validate.unobtrusive") {
 		evidence = append(evidence, result.Evidence{
-			Description: "jquery.validate.unobtrusive script found",
+			Description: "jQuery unobtrusive validation library referenced",
+			Source:      "HTML Body: Script reference",
+			Value:       "jquery.validate.unobtrusive",
 			Confidence:  50,
 		})
 	}
 
 	if strings.Contains(body, "System.Web.Mvc") {
 		evidence = append(evidence, result.Evidence{
-			Description: "System.Web.Mvc reference in HTML",
+			Description: "System.Web.Mvc namespace referenced",
+			Source:      "HTML Body: Script or attribute",
+			Value:       "System.Web.Mvc",
 			Confidence:  80,
 		})
 	}
@@ -158,7 +164,9 @@ func detectRoutes(client *httpclient.Client, baseURL string) []result.Evidence {
 
 		if resp.StatusCode == http.StatusOK {
 			evidence = append(evidence, result.Evidence{
-				Description: "Default MVC route " + route + " responded with 200",
+				Description: "MVC default route is accessible",
+				Source:      fmt.Sprintf("HTTP Route: %s", route),
+				Value:       fmt.Sprintf("HTTP %d", resp.StatusCode),
 				Confidence:  40,
 			})
 		}
@@ -180,7 +188,9 @@ func detectErrorPage(client *httpclient.Client, baseURL string) []result.Evidenc
 	if resp.StatusCode == http.StatusNotFound {
 		if strings.Contains(body, "The resource cannot be found") || strings.Contains(body, "Server Error in '/' Application") {
 			evidence = append(evidence, result.Evidence{
-				Description: "MVC-style 404 error page detected",
+				Description: "MVC error page detected",
+				Source:      "HTTP Error Page: /nonexistent-path-12345",
+				Value:       "404 Error Message Pattern",
 				Confidence:  30,
 			})
 		}
@@ -190,6 +200,8 @@ func detectErrorPage(client *httpclient.Client, baseURL string) []result.Evidenc
 	if strings.Contains(body, "System.Web.Mvc") {
 		evidence = append(evidence, result.Evidence{
 			Description: "MVC stack trace in error page",
+			Source:      "HTTP Error Page: /nonexistent-path-12345",
+			Value:       "System.Web.Mvc Stack Trace",
 			Confidence:  50,
 		})
 	}
@@ -212,7 +224,9 @@ func detectStaticFiles(client *httpclient.Client, baseURL string) []result.Evide
 
 		if resp.StatusCode == http.StatusOK {
 			evidence = append(evidence, result.Evidence{
-				Description: "MVC static file " + file + " found",
+				Description: "MVC static file structure detected",
+				Source:      fmt.Sprintf("Static File: %s", file),
+				Value:       fmt.Sprintf("HTTP %d", resp.StatusCode),
 				Confidence:  20,
 			})
 		}

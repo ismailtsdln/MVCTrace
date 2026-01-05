@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/ismailtsdln/mvctrace/internal/detector"
-	"github.com/ismailtsdln/mvctrace/internal/httpclient"
 	"log"
 	"os"
 	"time"
+
+	"github.com/ismailtsdln/mvctrace/internal/detector"
+	"github.com/ismailtsdln/mvctrace/internal/httpclient"
 )
 
 const (
@@ -74,6 +75,9 @@ func main() {
 		fmt.Printf("%sFramework:%s ASP.NET MVC\n", green+bold, reset)
 		if result.Version != "" {
 			fmt.Printf("%sMVC Version:%s %s (%s%s%s Confidence)\n", green+bold, reset, result.Version, getConfidenceColor(result.Confidence), result.ConfidenceLevel(), reset)
+			if result.VersionSource != "" {
+				fmt.Printf("%sVersion Source:%s %s\n", green, reset, result.VersionSource)
+			}
 		} else {
 			fmt.Printf("%sMVC Detected%s (%s%s%s Confidence)\n", green+bold, reset, getConfidenceColor(result.Confidence), result.ConfidenceLevel(), reset)
 		}
@@ -86,6 +90,10 @@ func main() {
 		fmt.Printf("%sEvidence:%s\n", yellow+bold, reset)
 		for _, ev := range result.Evidence {
 			fmt.Printf("  %s•%s %s\n", yellow, reset, ev.Description)
+			fmt.Printf("    %sSource:%s %s\n", yellow, reset, ev.Source)
+			if ev.Value != "" {
+				fmt.Printf("    %sValue:%s %s\n", yellow, reset, ev.Value)
+			}
 		}
 	}
 }
