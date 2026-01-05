@@ -314,7 +314,6 @@ We welcome contributions! Here's how:
 **İsmail Taşdelen**
 - GitHub: [@ismailtsdln](https://github.com/ismailtsdln)
 - Email: contact via GitHub
-- Twitter: [@ismailtsdln](https://twitter.com/ismailtsdln)
 
 ## Acknowledgments
 
